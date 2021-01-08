@@ -1,0 +1,617 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.3.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+<link rel="stylesheet" href="//fonts.googleapis.com/css?family=Lato:300,300italic,400,400italic,700,700italic&display=swap&subset=latin,latin-ext">
+<link rel="stylesheet" href="/lib/font-awesome/css/font-awesome.min.css">
+
+
+<script id="hexo-configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    hostname: new URL('http://wangyongxu.github.io').hostname,
+    root: '/',
+    scheme: 'Mist',
+    version: '7.7.0',
+    exturl: false,
+    sidebar: {"position":"right","display":"post","padding":18,"offset":12,"onmobile":false},
+    copycode: {"enable":false,"show_result":false,"style":null},
+    back2top: {"enable":true,"sidebar":false,"scrollpercent":false},
+    bookmark: {"enable":false,"color":"#222","save":"auto"},
+    fancybox: false,
+    mediumzoom: true,
+    lazyload: false,
+    pangu: false,
+    comments: {"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},
+    algolia: {
+      appID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    },
+    localsearch: {"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},
+    path: '',
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}
+  };
+</script>
+
+  <meta name="description" content="有个预发环境的springboot服务运行一段时间了，但是在使用上传文件的过程中突然抛出了一个异常MultipartException。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="The temporary upload location not valid的前因后果">
+<meta property="og:url" content="http://wangyongxu.github.io/2019/01/10/The%20temporary%20upload%20location%20not%20valid%E7%9A%84%E5%89%8D%E5%9B%A0%E5%90%8E%E6%9E%9C/index.html">
+<meta property="og:site_name" content="渔舟唱晚">
+<meta property="og:description" content="有个预发环境的springboot服务运行一段时间了，但是在使用上传文件的过程中突然抛出了一个异常MultipartException。">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://ws2.sinaimg.cn/large/006tNc79ly1fzagdf6cbzj30zc0a674g.jpg">
+<meta property="og:image" content="https://ws1.sinaimg.cn/large/006tNc79ly1fzagle00f9j31450u07ct.jpg">
+<meta property="og:image" content="https://ws3.sinaimg.cn/large/006tNc79ly1fzbtk2yet5j30vw0gimz1.jpg">
+<meta property="og:image" content="https://ws2.sinaimg.cn/large/006tNc79ly1fzbumbsxyzj31a00faabb.jpg">
+<meta property="og:image" content="https://ws4.sinaimg.cn/large/006tNc79ly1fzburu4sr7j31ao0bsq44.jpg">
+<meta property="article:published_time" content="2019-01-10T00:23:34.000Z">
+<meta property="article:modified_time" content="2021-01-08T06:08:58.664Z">
+<meta property="article:author" content="wangyongxu">
+<meta property="article:tag" content="Springboot">
+<meta property="article:tag" content="文件上传">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://ws2.sinaimg.cn/large/006tNc79ly1fzagdf6cbzj30zc0a674g.jpg">
+
+<link rel="canonical" href="http://wangyongxu.github.io/2019/01/10/The%20temporary%20upload%20location%20not%20valid%E7%9A%84%E5%89%8D%E5%9B%A0%E5%90%8E%E6%9E%9C/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome: false,
+    isPost: true
+  };
+</script>
+
+  <title>The temporary upload location not valid的前因后果 | 渔舟唱晚</title>
+  
+
+
+  <script>
+    var _hmt = _hmt || [];
+    (function() {
+      var hm = document.createElement("script");
+      hm.src = "https://hm.baidu.com/hm.js?6c9cfe1142ecf385c6851f220c6b3a7f";
+      var s = document.getElementsByTagName("script")[0];
+      s.parentNode.insertBefore(hm, s);
+    })();
+  </script>
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-meta">
+
+    <div>
+      <a href="/" class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">渔舟唱晚</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+        <p class="site-subtitle">渔舟唱晚</p>
+  </div>
+
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+</div>
+
+
+<nav class="site-nav">
+  
+  <ul id="menu" class="menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-fw fa-home"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-fw fa-tags"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-fw fa-archive"></i>归档</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-fw fa-user"></i>关于</a>
+
+  </li>
+  </ul>
+
+</nav>
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content">
+            
+
+  <div class="posts-expand">
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block " lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="http://wangyongxu.github.io/2019/01/10/The%20temporary%20upload%20location%20not%20valid%E7%9A%84%E5%89%8D%E5%9B%A0%E5%90%8E%E6%9E%9C/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="wangyongxu">
+      <meta itemprop="description" content="个人技术博客">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="渔舟唱晚">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          The temporary upload location not valid的前因后果
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2019-01-10 08:23:34" itemprop="dateCreated datePublished" datetime="2019-01-10T08:23:34+08:00">2019-01-10</time>
+            </span>
+
+          
+            <span id="/2019/01/10/The%20temporary%20upload%20location%20not%20valid%E7%9A%84%E5%89%8D%E5%9B%A0%E5%90%8E%E6%9E%9C/" class="post-meta-item leancloud_visitors" data-flag-title="The temporary upload location not valid的前因后果" title="阅读次数">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-eye"></i>
+              </span>
+              <span class="post-meta-item-text">阅读次数：</span>
+              <span class="leancloud-visitors-count"></span>
+            </span>
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="fa fa-comment-o"></i>
+      </span>
+      <span class="post-meta-item-text">Valine：</span>
+    
+    <a title="valine" href="/2019/01/10/The%20temporary%20upload%20location%20not%20valid%E7%9A%84%E5%89%8D%E5%9B%A0%E5%90%8E%E6%9E%9C/#comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/2019/01/10/The%20temporary%20upload%20location%20not%20valid%E7%9A%84%E5%89%8D%E5%9B%A0%E5%90%8E%E6%9E%9C/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  
+            <span class="post-meta-item" title="本文字数">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-file-word-o"></i>
+              </span>
+                <span class="post-meta-item-text">本文字数：</span>
+              <span>5.7k</span>
+            </span>
+            <span class="post-meta-item" title="阅读时长">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-clock-o"></i>
+              </span>
+                <span class="post-meta-item-text">阅读时长 &asymp;</span>
+              <span>5 分钟</span>
+            </span>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p>  有个预发环境的springboot服务运行一段时间了，但是在使用上传文件的过程中突然抛出了一个异常<code>MultipartException</code>。</p>
+<a id="more"></a>
+
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">org.springframework.web.multipart.MultipartException: Could not parse multipart servlet request; nested exception is java.io.IOException: The temporary upload location [/tmp/tomcat<span class="number">.4844531895045477202</span><span class="number">.8082</span>/work/Tomcat/localhost/ROOT] is not valid</span><br></pre></td></tr></table></figure>
+
+<p>这是spring抛出的错误，意思是在解析multipart servlet request时，发现临时上传的路径非法，在服务器上看了一下这个路径是没有了的，所以抛非法是可以理解的，但是有3个问题需要关注:</p>
+<ol>
+<li>为什么spring上传文件的时候需要使用一个临时的路径？这个路径的作用是什么 ？</li>
+<li>为什么之前好好的，但是抛出了文件非法的异常，这段事件发生了什么事情？</li>
+<li>如何修复？</li>
+</ol>
+<h2 id="环境"><a href="#环境" class="headerlink" title="环境"></a>环境</h2><ul>
+<li>服务器 centos7</li>
+<li>Springboot: 1.5.1.RELEASE</li>
+<li>Java8</li>
+<li>jar的方式运行服务</li>
+</ul>
+<h2 id="原因"><a href="#原因" class="headerlink" title="原因"></a>原因</h2><p>  先google了一下该异常，该异常抛出的原因是springboot<strong>每次启动</strong>时会在/tmp文件下创建一个文件夹，名字类似<code>tomcat.4844531895045477202.8082</code>，但是centos会根据一定的策略对/tmp下的一些文件进行清理，系统如果清理掉了springboot的文件夹，而springboot在上传文件时仍旧会利用该目录，但是路径已经不存在了，所以抛出了异常。</p>
+<p>在github上也有很多关于该问题的issue被open、close，甚至reopen，<a href="https://github.com/spring-projects/spring-boot/issues/9616" target="_blank" rel="noopener">#9619</a>， <a href="https://github.com/spring-projects/spring-boot/issues/5009" target="_blank" rel="noopener">#5009</a>，<a href="https://github.com/spring-projects/spring-boot/issues/8459" target="_blank" rel="noopener">#8459</a></p>
+<h3 id="解决方案"><a href="#解决方案" class="headerlink" title="解决方案"></a>解决方案</h3><p>对于该问题，根本问题是临时文件夹的路径被删除，所以只要避免该路径被删除，都可以达到效果，有2种解决方案:</p>
+<ul>
+<li>更改临时路径的位置(默认是/tmp之下)</li>
+<li>更改系统的删除策略</li>
+</ul>
+<h5 id="更改临时路径"><a href="#更改临时路径" class="headerlink" title="更改临时路径"></a>更改临时路径</h5><p>临时文件路径是在启动时，根据<code>System.getProperty(&quot;java.io.tmpdir&quot;);</code>获得JVM的临时文件目录，以此为基础创建文件夹，所以可以在启动springboot时设置<code>java.io.tmpdir</code>的位置来更改路径</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">System.setProperty(<span class="string">"java.io.tmpdir"</span>, <span class="string">"your-temp-path"</span>);</span><br></pre></td></tr></table></figure>
+
+<p>或者使用spring提供的更方便的配置形式:</p>
+<p>在application.properties中添加:</p>
+<figure class="highlight properties"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">spring.http.multipart.location</span>=<span class="string">$&#123;HOME&#125;</span></span><br></pre></td></tr></table></figure>
+
+<p>如上，文件上传便指定到了当前用户的目录下。</p>
+<h5 id="更改系统临时文件的清理策略"><a href="#更改系统临时文件的清理策略" class="headerlink" title="更改系统临时文件的清理策略"></a>更改系统临时文件的清理策略</h5><p>既然是centos会定时清理/tmp文件夹，那把清理策略调整一下也是可以的。</p>
+<p>在centos7中，系统使用systemd管理易变与临时文件，与之相关的系统服务有3个</p>
+<figure class="highlight properties"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">systemd-tmpfiles-setup.service</span>  <span class="string">：Create Volatile Files and Directories</span></span><br><span class="line"><span class="meta">systemd-tmpfiles-setup-dev.service：Create</span> <span class="string">static device nodes in /dev</span></span><br><span class="line"><span class="meta">systemd-tmpfiles-clean.service</span> <span class="string">：Cleanup of Temporary Directories</span></span><br></pre></td></tr></table></figure>
+
+<p>对应的配置文件为:</p>
+<figure class="highlight properties"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">/etc/tmpfiles.d/*.conf</span></span><br><span class="line"><span class="attr">/run/tmpfiles.d/*.conf</span></span><br><span class="line"><span class="attr">/usr/lib/tmpfiles.d/*.conf</span></span><br></pre></td></tr></table></figure>
+
+<p>/tmp目录的清理规则主要取决于/usr/lib/tmpfiles.d/tmp.conf文件的设定，默认的配置内容为：</p>
+<figure class="highlight properties"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line"> <span class="attr">This</span> <span class="string">file is part of systemd.</span></span><br><span class="line"><span class="comment">#</span></span><br><span class="line"><span class="comment">#  systemd is free software; you can redistribute it and/or modify it</span></span><br><span class="line"><span class="comment">#  under the terms of the GNU Lesser General Public License as published by</span></span><br><span class="line"><span class="comment">#  the Free Software Foundation; either version 2.1 of the License, or</span></span><br><span class="line"><span class="comment">#  (at your option) any later version.</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># See tmpfiles.d(5) for details</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># Clear tmp directories separately, to make them easier to override</span></span><br><span class="line"><span class="attr">v</span> <span class="string">/tmp 1777 root root 10d</span></span><br><span class="line"><span class="attr">v</span> <span class="string">/var/tmp 1777 root root 30d</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># Exclude namespace mountpoints created with PrivateTmp=yes</span></span><br><span class="line"><span class="attr">x</span> <span class="string">/tmp/systemd-private-%b-*</span></span><br><span class="line"><span class="attr">X</span> <span class="string">/tmp/systemd-private-%b-*/tmp</span></span><br><span class="line"><span class="attr">x</span> <span class="string">/var/tmp/systemd-private-%b-*</span></span><br><span class="line"><span class="attr">X</span> <span class="string">/var/tmp/systemd-private-%b-*/tmp</span></span><br></pre></td></tr></table></figure>
+
+<p>我们可以配置这个文件，比如你不想让系统自动清理/tmp下以tomcat开头的目录，那么增加下面这条内容到配置文件中即可：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">x &#x2F;tmp&#x2F;tomcat.*</span><br></pre></td></tr></table></figure>
+
+<h3 id="源码解析"><a href="#源码解析" class="headerlink" title="源码解析"></a>源码解析</h3><p>上面的内容已经回答了3个问题的后2个，那第一个问题需要搞明白springboot的上传原理才能回答。</p>
+<p>springboot jar包运行使用的是内嵌tomcat容器。</p>
+<p>文件的上传直接debug看源码。</p>
+<p>在debug之前，可以先想象一下请求流程</p>
+<p>首先，当tomcat启动后开始监听某个端口，接收到一个请求后，开始解析请求，请求解析完毕后，经过一系列的处理后，交给springmvc进行后续处理，猜想的流程如下:</p>
+<p><a href="https://ws2.sinaimg.cn/large/006tNc79ly1fzagdf6cbzj30zc0a674g.jpg" target="_blank" rel="noopener"><img src="https://ws2.sinaimg.cn/large/006tNc79ly1fzagdf6cbzj30zc0a674g.jpg" alt="img"></a></p>
+<p>异常在哪里抛出的呢？我们根据异常去搜索一下异常在哪里抛出的</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">rg.springframework.web.multipart.MultipartException: Could not parse multipart servlet request; nested exception is java.io.IOException: The temporary upload location [/tmp/tomcat.4844531895045477202.8082/work/Tomcat/localhost/ROOT] is not valid</span><br></pre></td></tr></table></figure>
+
+<p>在IDE中搜索<code>The temporary upload location</code> ,结果如下:</p>
+<p><a href="https://ws1.sinaimg.cn/large/006tNc79ly1fzagle00f9j31450u07ct.jpg" target="_blank" rel="noopener"><img src="https://ws1.sinaimg.cn/large/006tNc79ly1fzagle00f9j31450u07ct.jpg" alt="img"></a></p>
+<p>发现是一个<code>org.apache.catalina.connector.Request#parseParts</code>中引用了它，看名字好像是解析文件块的，好，在这里打断点看一下，发起一个上传文件的请求后，</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br></pre></td><td class="code"><pre><span class="line">Parameters parameters = coyoteRequest.getParameters();</span><br><span class="line">parameters.setLimit(getConnector().getMaxParameterCount());</span><br><span class="line"></span><br><span class="line"><span class="keyword">boolean</span> success = <span class="keyword">false</span>;</span><br><span class="line"><span class="keyword">try</span> &#123;</span><br><span class="line">    File location;</span><br><span class="line">   <span class="comment">// 获取配置的临时文件地址</span></span><br><span class="line">    String locationStr = mce.getLocation();</span><br><span class="line">   <span class="comment">// 如果未配置，则使用默认的地址Servlet的默认地址</span></span><br><span class="line">    <span class="keyword">if</span> (locationStr == <span class="keyword">null</span> || locationStr.length() == <span class="number">0</span>) &#123;</span><br><span class="line">        location = ((File) context.getServletContext().getAttribute(</span><br><span class="line">                ServletContext.TEMPDIR));</span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">        <span class="comment">// If relative, it is relative to TEMPDIR</span></span><br><span class="line">        location = <span class="keyword">new</span> File(locationStr);</span><br><span class="line">        <span class="keyword">if</span> (!location.isAbsolute()) &#123;</span><br><span class="line">            location = <span class="keyword">new</span> File(</span><br><span class="line">                    (File) context.getServletContext().getAttribute(</span><br><span class="line">                                ServletContext.TEMPDIR),</span><br><span class="line">                                locationStr).getAbsoluteFile();</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">  	<span class="comment">// 判断location是否是目录，如果不是或者不存在,直接返回，准备抛出not valid异常</span></span><br><span class="line">    <span class="keyword">if</span> (!location.isDirectory()) &#123;</span><br><span class="line">        parameters.setParseFailedReason(FailReason.MULTIPART_CONFIG_INVALID);</span><br><span class="line">        partsParseException = <span class="keyword">new</span> IOException(</span><br><span class="line">                sm.getString(<span class="string">"coyoteRequest.uploadLocationInvalid"</span>,</span><br><span class="line">                        location));</span><br><span class="line">        <span class="keyword">return</span>;</span><br><span class="line">    &#125;</span><br></pre></td></tr></table></figure>
+
+<p>可以看到，如果location不是文件夹或文件夹不存在时，将准备抛出异常，而这里的异常抛出也不是直接抛出，而是读取StringManager中的属性来抛出异常，这就是我刚开始直接搜索异常，在代码中美搜到，但是却在tomcat包中LocalStrings.properties文件中搜索到的原因。</p>
+<p>那Servlet默认的地址是什么呢？</p>
+<p>这个地址要看启动容器的代码才能知道了。</p>
+<p>在进入spring的<code>refreshContext(context)</code>方法后，最终可以debug看到<code>org.springframework.boot.context.embedded.EmbeddedWebApplicationContext#createEmbeddedServletContainer</code> ，在这个方法里，将创建内嵌的servlet容器，最终在<code>org.springframework.boot.context.embedded.tomcat.TomcatEmbeddedServletContainerFactory#getEmbeddedServletContainer</code>里面有如下代码:</p>
+<p><a href="https://ws3.sinaimg.cn/large/006tNc79ly1fzbtk2yet5j30vw0gimz1.jpg" target="_blank" rel="noopener"><img src="https://ws3.sinaimg.cn/large/006tNc79ly1fzbtk2yet5j30vw0gimz1.jpg" alt="img"></a></p>
+<p>createTempDir的方法是:</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/**</span></span><br><span class="line"><span class="comment"> * Returns the absolute temp dir for given servlet container.</span></span><br><span class="line"><span class="comment"> * <span class="doctag">@param</span> prefix servlet container name</span></span><br><span class="line"><span class="comment"> * <span class="doctag">@return</span> The temp dir for given servlet container.</span></span><br><span class="line"><span class="comment"> */</span></span><br><span class="line"><span class="function"><span class="keyword">protected</span> File <span class="title">createTempDir</span><span class="params">(String prefix)</span> </span>&#123;</span><br><span class="line">	<span class="keyword">try</span> &#123;</span><br><span class="line">         	<span class="comment">// 在这里调用File的方法创建临时文件，并设置File在JVM退出时删除自身</span></span><br><span class="line">		File tempDir = File.createTempFile(prefix + <span class="string">"."</span>, <span class="string">"."</span> + getPort());</span><br><span class="line">		tempDir.delete();</span><br><span class="line">		tempDir.mkdir();</span><br><span class="line">		tempDir.deleteOnExit();</span><br><span class="line">		<span class="keyword">return</span> tempDir;</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">catch</span> (IOException ex) &#123;</span><br><span class="line">		<span class="keyword">throw</span> <span class="keyword">new</span> EmbeddedServletContainerException(</span><br><span class="line">				<span class="string">"Unable to create tempDir. java.io.tmpdir is set to "</span></span><br><span class="line">						+ System.getProperty(<span class="string">"java.io.tmpdir"</span>),</span><br><span class="line">				ex);</span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>而File创建临时文件是根据<code>System.getProperty(&quot;java.io.tmpdir&quot;)</code>来创建的，根据操作系统的不同，该值有所不同，在centos上是<code>/tmp</code>, 在mac上我的是<code>/var/folders/pj/pn1bg2b56jsgw3hkmm3l2b1r0000gn/T/</code></p>
+<p>所以除了在配置文件中指定上传的文件路径之外，也可以通过<code>System.setProperty(&quot;java.io.tmpdir&quot;, &quot;&quot;)</code>指定位置，但是该方式的一点问题是会更改该JVM里面所有使用File创建临时文件的目录，而使用配置的方式只会更改上传文件的目录。</p>
+<h3 id="结论"><a href="#结论" class="headerlink" title="结论"></a>结论</h3><p>这个问题在经常使用上传功能的服务中，应该是不会出现的，但是如果服务中有个上传文件功能，但是又比较少用，超过了保存临时文件的期限，就会抛出异常，导致上传功能无法使用。而如果刚好又重启了服务器，启动时tomcat又创建了该临时文件，又会把该问题掩盖掉。</p>
+<p>该问题已有网友在2016年1月份在springboot1.5.0版本中提出，但是一直无解，也因为该问题open了多个issue，但是直至目前2.*版本，该bug还是没有解决，而该bug级别也从为normal变为low，也一直没有解决的原因也是没有找到好的解决方案:</p>
+<p><a href="https://ws2.sinaimg.cn/large/006tNc79ly1fzbumbsxyzj31a00faabb.jpg" target="_blank" rel="noopener"><img src="https://ws2.sinaimg.cn/large/006tNc79ly1fzbumbsxyzj31a00faabb.jpg" alt="img"></a></p>
+<p>虽然有网友提出通过/var/cache的方式来存放临时文件，但是并没有得到一致的认可；</p>
+<p>而phiwebb也不想违反<code>约定大于配置</code> 而程序猿们必须指定上传文件的地址。</p>
+<p><a href="https://ws4.sinaimg.cn/large/006tNc79ly1fzburu4sr7j31ao0bsq44.jpg" target="_blank" rel="noopener"><img src="https://ws4.sinaimg.cn/large/006tNc79ly1fzburu4sr7j31ao0bsq44.jpg" alt="img"></a></p>
+<p>总之，是没有一个彻底解决该问题的办法，但是可以自己指定该上传文件的位置而规避掉此问题。</p>
+<h3 id="参考"><a href="#参考" class="headerlink" title="参考"></a>参考</h3><p>修改/tmp清理策略: <a href="http://blog.51cto.com/kusorz/2051877" target="_blank" rel="noopener">http://blog.51cto.com/kusorz/2051877</a></p>
+<p>Github issue:</p>
+<ol>
+<li><p><a href="https://github.com/spring-projects/spring-boot/issues/9616" target="_blank" rel="noopener">https://github.com/spring-projects/spring-boot/issues/9616</a></p>
+</li>
+<li><p><a href="https://github.com/spring-projects/spring-boot/issues/8459" target="_blank" rel="noopener">https://github.com/spring-projects/spring-boot/issues/8459</a></p>
+</li>
+<li><p><a href="https://github.com/spring-projects/spring-boot/issues/9616" target="_blank" rel="noopener">https://github.com/spring-projects/spring-boot/issues/9616</a></p>
+</li>
+</ol>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          
+          <div class="post-tags">
+              <a href="/tags/Springboot/" rel="tag"><i class="fa fa-tag"></i> Springboot</a>
+              <a href="/tags/%E6%96%87%E4%BB%B6%E4%B8%8A%E4%BC%A0/" rel="tag"><i class="fa fa-tag"></i> 文件上传</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item"></div>
+      <div class="post-nav-item">
+    <a href="/2019/01/10/%E7%99%BE%E5%BA%A6sdk%E6%97%A5%E5%BF%97%E9%97%AE%E9%A2%98/" rel="next" title="百度sdk日志问题">
+      百度sdk日志问题 <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+  </div>
+
+
+          </div>
+          
+    <div class="comments" id="valine-comments"></div>
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let activeClass = CONFIG.comments.activeClass;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E7%8E%AF%E5%A2%83"><span class="nav-number">1.</span> <span class="nav-text">环境</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%8E%9F%E5%9B%A0"><span class="nav-number">2.</span> <span class="nav-text">原因</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E8%A7%A3%E5%86%B3%E6%96%B9%E6%A1%88"><span class="nav-number">2.1.</span> <span class="nav-text">解决方案</span></a><ol class="nav-child"><li class="nav-item nav-level-5"><a class="nav-link" href="#%E6%9B%B4%E6%94%B9%E4%B8%B4%E6%97%B6%E8%B7%AF%E5%BE%84"><span class="nav-number">2.1.0.1.</span> <span class="nav-text">更改临时路径</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#%E6%9B%B4%E6%94%B9%E7%B3%BB%E7%BB%9F%E4%B8%B4%E6%97%B6%E6%96%87%E4%BB%B6%E7%9A%84%E6%B8%85%E7%90%86%E7%AD%96%E7%95%A5"><span class="nav-number">2.1.0.2.</span> <span class="nav-text">更改系统临时文件的清理策略</span></a></li></ol></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E6%BA%90%E7%A0%81%E8%A7%A3%E6%9E%90"><span class="nav-number">2.2.</span> <span class="nav-text">源码解析</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E7%BB%93%E8%AE%BA"><span class="nav-number">2.3.</span> <span class="nav-text">结论</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%8F%82%E8%80%83"><span class="nav-number">2.4.</span> <span class="nav-text">参考</span></a></li></ol></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">wangyongxu</p>
+  <div class="site-description" itemprop="description">个人技术博客</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">13</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">9</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://github.com/wangyongxu" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;wangyongxu" rel="noopener" target="_blank"><i class="fa fa-fw fa-github"></i></a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="https://stackoverflow.com/users/7092009/wang-yongxu" title="StackOverflow → https:&#x2F;&#x2F;stackoverflow.com&#x2F;users&#x2F;7092009&#x2F;wang-yongxu" rel="noopener" target="_blank"><i class="fa fa-fw fa-stack-overflow"></i></a>
+      </span>
+  </div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2021</span>
+  <span class="with-love">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">wangyongxu</span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-area-chart"></i>
+    </span>
+      <span class="post-meta-item-text">站点总字数：</span>
+    <span title="站点总字数">67k</span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-coffee"></i>
+    </span>
+      <span class="post-meta-item-text">站点阅读时长 &asymp;</span>
+    <span title="站点阅读时长">1:01</span>
+</div>
+  <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> 强力驱动 v5.3.0
+  </div>
+  <span class="post-meta-divider">|</span>
+  <div class="theme-info">主题 – <a href="https://mist.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Mist</a> v7.7.0
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  
+  <script color='0,0,255' opacity='0.5' zIndex='-1' count='99' src="/lib/canvas-nest/canvas-nest.min.js"></script>
+  <script src="/lib/anime.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/medium-zoom@1/dist/medium-zoom.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/muse.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+<script>
+if (document.querySelectorAll('pre.mermaid').length) {
+  NexT.utils.getScript('//cdn.jsdelivr.net/npm/mermaid@8/dist/mermaid.min.js', () => {
+    mermaid.initialize({
+      theme: 'forest',
+      logLevel: 3,
+      flowchart: { curve: 'linear' },
+      gantt: { axisFormat: '%m/%d/%Y' },
+      sequence: { actorMargin: 50 }
+    });
+  }, window.mermaid);
+}
+</script>
+
+
+  
+
+  
+
+
+<script>
+NexT.utils.loadComments(document.querySelector('#valine-comments'), () => {
+  NexT.utils.getScript('//unpkg.com/valine/dist/Valine.min.js', () => {
+    var GUEST = ['nick', 'mail', 'link'];
+    var guest = 'nick,mail';
+    guest = guest.split(',').filter(item => {
+      return GUEST.includes(item);
+    });
+    new Valine({
+      el: '#valine-comments',
+      verify: false,
+      notify: true,
+      appId: 'QLqXKcorbsrAqEDljehpX124-gzGzoHsz',
+      appKey: 'ahIQFqxb5Jrn6mfvYjevUHlJ',
+      placeholder: "Just go go",
+      avatar: 'mm',
+      meta: guest,
+      pageSize: '10' || 10,
+      visitor: true,
+      lang: 'zh-cn' || 'zh-cn',
+      path: location.pathname,
+      recordIP: true,
+      serverURLs: ''
+    });
+  }, window.Valine);
+});
+</script>
+
+</body>
+</html>

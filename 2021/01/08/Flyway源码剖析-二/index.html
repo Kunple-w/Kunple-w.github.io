@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.3.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+<link rel="stylesheet" href="//fonts.googleapis.com/css?family=Lato:300,300italic,400,400italic,700,700italic&display=swap&subset=latin,latin-ext">
+<link rel="stylesheet" href="/lib/font-awesome/css/font-awesome.min.css">
+
+
+<script id="hexo-configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    hostname: new URL('http://wangyongxu.github.io').hostname,
+    root: '/',
+    scheme: 'Mist',
+    version: '7.7.0',
+    exturl: false,
+    sidebar: {"position":"right","display":"post","padding":18,"offset":12,"onmobile":false},
+    copycode: {"enable":false,"show_result":false,"style":null},
+    back2top: {"enable":true,"sidebar":false,"scrollpercent":false},
+    bookmark: {"enable":false,"color":"#222","save":"auto"},
+    fancybox: false,
+    mediumzoom: true,
+    lazyload: false,
+    pangu: false,
+    comments: {"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},
+    algolia: {
+      appID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    },
+    localsearch: {"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},
+    path: '',
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}
+  };
+</script>
+
+  <meta name="description" content="迁移是如何实现的？">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Flyway源码剖析(二)-源码">
+<meta property="og:url" content="http://wangyongxu.github.io/2021/01/08/Flyway%E6%BA%90%E7%A0%81%E5%89%96%E6%9E%90-%E4%BA%8C/index.html">
+<meta property="og:site_name" content="渔舟唱晚">
+<meta property="og:description" content="迁移是如何实现的？">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2021-01-08T06:38:35.000Z">
+<meta property="article:modified_time" content="2021-01-08T06:52:12.302Z">
+<meta property="article:author" content="wangyongxu">
+<meta property="article:tag" content="flyway">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="http://wangyongxu.github.io/2021/01/08/Flyway%E6%BA%90%E7%A0%81%E5%89%96%E6%9E%90-%E4%BA%8C/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome: false,
+    isPost: true
+  };
+</script>
+
+  <title>Flyway源码剖析(二)-源码 | 渔舟唱晚</title>
+  
+
+
+  <script>
+    var _hmt = _hmt || [];
+    (function() {
+      var hm = document.createElement("script");
+      hm.src = "https://hm.baidu.com/hm.js?6c9cfe1142ecf385c6851f220c6b3a7f";
+      var s = document.getElementsByTagName("script")[0];
+      s.parentNode.insertBefore(hm, s);
+    })();
+  </script>
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-meta">
+
+    <div>
+      <a href="/" class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">渔舟唱晚</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+        <p class="site-subtitle">渔舟唱晚</p>
+  </div>
+
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+</div>
+
+
+<nav class="site-nav">
+  
+  <ul id="menu" class="menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-fw fa-home"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-fw fa-tags"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-fw fa-archive"></i>归档</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-fw fa-user"></i>关于</a>
+
+  </li>
+  </ul>
+
+</nav>
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content">
+            
+
+  <div class="posts-expand">
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block " lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="http://wangyongxu.github.io/2021/01/08/Flyway%E6%BA%90%E7%A0%81%E5%89%96%E6%9E%90-%E4%BA%8C/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="wangyongxu">
+      <meta itemprop="description" content="个人技术博客">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="渔舟唱晚">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          Flyway源码剖析(二)-源码
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2021-01-08 14:38:35" itemprop="dateCreated datePublished" datetime="2021-01-08T14:38:35+08:00">2021-01-08</time>
+            </span>
+
+          
+            <span id="/2021/01/08/Flyway%E6%BA%90%E7%A0%81%E5%89%96%E6%9E%90-%E4%BA%8C/" class="post-meta-item leancloud_visitors" data-flag-title="Flyway源码剖析(二)-源码" title="阅读次数">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-eye"></i>
+              </span>
+              <span class="post-meta-item-text">阅读次数：</span>
+              <span class="leancloud-visitors-count"></span>
+            </span>
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="fa fa-comment-o"></i>
+      </span>
+      <span class="post-meta-item-text">Valine：</span>
+    
+    <a title="valine" href="/2021/01/08/Flyway%E6%BA%90%E7%A0%81%E5%89%96%E6%9E%90-%E4%BA%8C/#comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/2021/01/08/Flyway%E6%BA%90%E7%A0%81%E5%89%96%E6%9E%90-%E4%BA%8C/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  
+            <span class="post-meta-item" title="本文字数">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-file-word-o"></i>
+              </span>
+                <span class="post-meta-item-text">本文字数：</span>
+              <span>8.3k</span>
+            </span>
+            <span class="post-meta-item" title="阅读时长">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-clock-o"></i>
+              </span>
+                <span class="post-meta-item-text">阅读时长 &asymp;</span>
+              <span>8 分钟</span>
+            </span>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p>迁移是如何实现的？</p>
+<a id="more"></a>
+
+<p>核心类<code>Flyway</code>通过调用<code>DbMigrate#migrate</code>进行迁移。</p>
+<h5 id="DbMigrate-migrate"><a href="#DbMigrate-migrate" class="headerlink" title="DbMigrate#migrate"></a>DbMigrate#migrate</h5><p>迁移的方法是<code>org.flywaydb.core.internal.command.DbMigrate#migrate</code>，内部会调用<code>migrateAll</code>,代码如下: </p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">private</span> <span class="keyword">int</span> <span class="title">migrateAll</span><span class="params">()</span> </span>&#123;</span><br><span class="line">       <span class="keyword">int</span> total = <span class="number">0</span>;</span><br><span class="line">       <span class="keyword">while</span> (<span class="keyword">true</span>) &#123;</span><br><span class="line">           <span class="keyword">final</span> <span class="keyword">boolean</span> firstRun = total == <span class="number">0</span>;</span><br><span class="line">           <span class="comment">// 执行迁移</span></span><br><span class="line">           <span class="keyword">int</span> count = configuration.isGroup()</span><br><span class="line">               <span class="comment">// 如果是group的情况下，历史表的锁已经在migrate方法中获取，所以不用再次加锁</span></span><br><span class="line">                   ? migrateGroup(firstRun)</span><br><span class="line">               <span class="comment">// 否则，需要获取锁再执行迁移,每迁移一条都会获取并释放</span></span><br><span class="line">                   : schemaHistory.lock(<span class="keyword">new</span> Callable&lt;Integer&gt;() &#123;</span><br><span class="line">               <span class="meta">@Override</span></span><br><span class="line">               <span class="function"><span class="keyword">public</span> Integer <span class="title">call</span><span class="params">()</span> </span>&#123;</span><br><span class="line">                   <span class="keyword">return</span> migrateGroup(firstRun);</span><br><span class="line">               &#125;</span><br><span class="line">           &#125;);</span><br><span class="line">           total += count;</span><br><span class="line">           <span class="comment">// 如果迁移的数量是0，说明迁移完成，break出循环</span></span><br><span class="line">           <span class="keyword">if</span> (count == <span class="number">0</span>) &#123;</span><br><span class="line">               <span class="comment">// No further migrations available</span></span><br><span class="line">               <span class="keyword">break</span>;</span><br><span class="line">           &#125;</span><br><span class="line">       &#125;</span><br><span class="line">       <span class="keyword">return</span> total;</span><br><span class="line">   &#125;</span><br></pre></td></tr></table></figure>
+
+
+<h6 id="migrateGroup"><a href="#migrateGroup" class="headerlink" title="migrateGroup"></a>migrateGroup</h6><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">private</span> Integer <span class="title">migrateGroup</span><span class="params">(<span class="keyword">boolean</span> firstRun)</span> </span>&#123;</span><br><span class="line">      MigrationInfoServiceImpl infoService =</span><br><span class="line">              <span class="keyword">new</span> MigrationInfoServiceImpl(migrationResolver, schemaHistory, configuration,</span><br><span class="line">                      configuration.getTarget(), configuration.isOutOfOrder(),</span><br><span class="line">                      <span class="keyword">true</span>, <span class="keyword">true</span>, <span class="keyword">true</span>, <span class="keyword">true</span>);</span><br><span class="line">    	<span class="comment">// 从历史表中同步MigrationInfoServiceImpl的状态</span></span><br><span class="line">      infoService.refresh();</span><br><span class="line"><span class="comment">// 获取历史中的当前最新的迁移信息</span></span><br><span class="line">      MigrationInfo current = infoService.current();</span><br><span class="line">      MigrationVersion currentSchemaVersion = current == <span class="keyword">null</span> ? MigrationVersion.EMPTY : current.getVersion();</span><br><span class="line">      <span class="keyword">if</span> (firstRun) &#123;</span><br><span class="line">          LOG.info(<span class="string">&quot;Current version of schema &quot;</span> + schema + <span class="string">&quot;: &quot;</span> + currentSchemaVersion);</span><br><span class="line">          <span class="keyword">if</span> (configuration.isOutOfOrder()) &#123;</span><br><span class="line">              LOG.warn(<span class="string">&quot;outOfOrder mode is active. Migration of schema &quot;</span> + schema + <span class="string">&quot; may not be reproducible.&quot;</span>);</span><br><span class="line">          &#125;</span><br><span class="line">      &#125;</span><br><span class="line"><span class="comment">// 获取历史表中存在，但是sql中不存在的记录，仅用来打印日志</span></span><br><span class="line">      MigrationInfo[] future = infoService.future();</span><br><span class="line">      <span class="keyword">if</span> (future.length &gt; <span class="number">0</span>) &#123;</span><br><span class="line">          List&lt;MigrationInfo&gt; resolved = Arrays.asList(infoService.resolved());</span><br><span class="line">          Collections.reverse(resolved);</span><br><span class="line">          <span class="keyword">if</span> (resolved.isEmpty()) &#123;</span><br><span class="line">              LOG.warn(<span class="string">&quot;Schema &quot;</span> + schema + <span class="string">&quot; has version &quot;</span> + currentSchemaVersion</span><br><span class="line">                      + <span class="string">&quot;, but no migration could be resolved in the configured locations !&quot;</span>);</span><br><span class="line">          &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">              <span class="keyword">for</span> (MigrationInfo migrationInfo : resolved) &#123;</span><br><span class="line">                  <span class="comment">// Only consider versioned migrations</span></span><br><span class="line">                  <span class="keyword">if</span> (migrationInfo.getVersion() != <span class="keyword">null</span>) &#123;</span><br><span class="line">                      LOG.warn(<span class="string">&quot;Schema &quot;</span> + schema + <span class="string">&quot; has a version (&quot;</span> + currentSchemaVersion</span><br><span class="line">                              + <span class="string">&quot;) that is newer than the latest available migration (&quot;</span></span><br><span class="line">                              + migrationInfo.getVersion() + <span class="string">&quot;) !&quot;</span>);</span><br><span class="line">                      <span class="keyword">break</span>;</span><br><span class="line">                  &#125;</span><br><span class="line">              &#125;</span><br><span class="line">          &#125;</span><br><span class="line">      &#125;</span><br><span class="line"><span class="comment">// 如果存在迁移失败，抛出异常，终止迁移</span></span><br><span class="line">      MigrationInfo[] failed = infoService.failed();</span><br><span class="line">      <span class="keyword">if</span> (failed.length &gt; <span class="number">0</span>) &#123;</span><br><span class="line">          <span class="keyword">if</span> ((failed.length == <span class="number">1</span>)</span><br><span class="line">                  &amp;&amp; (failed[<span class="number">0</span>].getState() == MigrationState.FUTURE_FAILED)</span><br><span class="line">                  &amp;&amp; configuration.isIgnoreFutureMigrations()) &#123;</span><br><span class="line">              LOG.warn(<span class="string">&quot;Schema &quot;</span> + schema + <span class="string">&quot; contains a failed future migration to version &quot;</span> + failed[<span class="number">0</span>].getVersion() + <span class="string">&quot; !&quot;</span>);</span><br><span class="line">          &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">              <span class="keyword">if</span> (failed[<span class="number">0</span>].getVersion() == <span class="keyword">null</span>) &#123;</span><br><span class="line">                  <span class="keyword">throw</span> <span class="keyword">new</span> FlywayException(<span class="string">&quot;Schema &quot;</span> + schema + <span class="string">&quot; contains a failed repeatable migration (&quot;</span> + failed[<span class="number">0</span>].getDescription() + <span class="string">&quot;) !&quot;</span>);</span><br><span class="line">              &#125;</span><br><span class="line">              <span class="keyword">throw</span> <span class="keyword">new</span> FlywayException(<span class="string">&quot;Schema &quot;</span> + schema + <span class="string">&quot; contains a failed migration to version &quot;</span> + failed[<span class="number">0</span>].getVersion() + <span class="string">&quot; !&quot;</span>);</span><br><span class="line">          &#125;</span><br><span class="line">      &#125;</span><br><span class="line"><span class="comment">// 如果配置文件中group=false,说明需要sql各自运行，此时group这个map中只会有一条记录</span></span><br><span class="line">    	<span class="comment">// 如果group=true,说明期望sql打包运行，则都往group map中放，并在同一个lock中执行</span></span><br><span class="line">      LinkedHashMap&lt;MigrationInfoImpl, Boolean&gt; group = <span class="keyword">new</span> LinkedHashMap&lt;&gt;();</span><br><span class="line">      <span class="keyword">for</span> (MigrationInfoImpl pendingMigration : infoService.pending()) &#123;</span><br><span class="line">          <span class="keyword">boolean</span> isOutOfOrder = pendingMigration.getVersion() != <span class="keyword">null</span></span><br><span class="line">                  &amp;&amp; pendingMigration.getVersion().compareTo(currentSchemaVersion) &lt; <span class="number">0</span>;</span><br><span class="line">          group.put(pendingMigration, isOutOfOrder);</span><br><span class="line">	<span class="comment">// group=false时，循环仅执行一次，group中只有一条记录</span></span><br><span class="line">          <span class="keyword">if</span> (!configuration.isGroup()) &#123;</span><br><span class="line">              <span class="comment">// Only include one pending migration if group is disabled</span></span><br><span class="line">              <span class="keyword">break</span>;</span><br><span class="line">          &#125;</span><br><span class="line">      &#125;</span><br><span class="line"><span class="comment">// 执行迁移</span></span><br><span class="line">      <span class="keyword">if</span> (!group.isEmpty()) &#123;</span><br><span class="line">          applyMigrations(group);</span><br><span class="line">      &#125;</span><br><span class="line">      <span class="keyword">return</span> group.size();</span><br><span class="line">  &#125;</span><br></pre></td></tr></table></figure>
+<h5 id="MigrationInfoServiceImpl-refresh"><a href="#MigrationInfoServiceImpl-refresh" class="headerlink" title="MigrationInfoServiceImpl#refresh"></a>MigrationInfoServiceImpl#refresh</h5><p><code>refresh</code>的操作会将db中的数据和脚本合并，分析出已执行和待执行的迁移，准备给迁移使用。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// org.flywaydb.core.internal.info.MigrationInfoServiceImpl#refresh</span></span><br><span class="line">	<span class="comment">// 从db和配置文件中刷新所有的迁移信息</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">refresh</span><span class="params">()</span> </span>&#123;</span><br><span class="line">        <span class="comment">// 利用MigrationResolver解析所有的sql和class，获取ResolvedMigration</span></span><br><span class="line">        Collection&lt;ResolvedMigration&gt; resolvedMigrations = migrationResolver.resolveMigrations(context);</span><br><span class="line">        <span class="comment">// 从db中获取已经应用的迁移</span></span><br><span class="line">        List&lt;AppliedMigration&gt; appliedMigrations = schemaHistory.allAppliedMigrations();</span><br><span class="line">        MigrationInfoContext context = <span class="keyword">new</span> MigrationInfoContext();</span><br><span class="line">        context.outOfOrder = outOfOrder;</span><br><span class="line">        context.pending = pending;</span><br><span class="line">        context.missing = missing;</span><br><span class="line">        context.ignored = ignored;</span><br><span class="line">        context.future = future;</span><br><span class="line">        context.target = target;</span><br><span class="line"></span><br><span class="line">        Map&lt;Pair&lt;MigrationVersion, Boolean&gt;, ResolvedMigration&gt; resolvedVersioned = <span class="keyword">new</span> TreeMap&lt;&gt;();</span><br><span class="line">        Map&lt;String, ResolvedMigration&gt; resolvedRepeatable = <span class="keyword">new</span> TreeMap&lt;&gt;();</span><br><span class="line">        <span class="comment">// 处理脚本，并分为2类: 可重复执行的和一次性执行的</span></span><br><span class="line">        <span class="keyword">for</span> (ResolvedMigration resolvedMigration : resolvedMigrations) &#123;</span><br><span class="line">            MigrationVersion version = resolvedMigration.getVersion();</span><br><span class="line">            <span class="keyword">if</span> (version != <span class="keyword">null</span>) &#123;</span><br><span class="line">                <span class="keyword">if</span> (version.compareTo(context.lastResolved) &gt; <span class="number">0</span>) &#123;</span><br><span class="line">                    context.lastResolved = version;</span><br><span class="line">                &#125;</span><br><span class="line">                <span class="comment">//noinspection RedundantConditionalExpression</span></span><br><span class="line">                resolvedVersioned.put(Pair.of(version,<span class="keyword">false</span>), resolvedMigration);</span><br><span class="line">            &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">                resolvedRepeatable.put(resolvedMigration.getDescription(), resolvedMigration);</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        List&lt;Pair&lt;AppliedMigration, AppliedMigrationAttributes&gt;&gt; appliedVersioned = <span class="keyword">new</span> ArrayList&lt;&gt;();</span><br><span class="line">        List&lt;AppliedMigration&gt; appliedRepeatable = <span class="keyword">new</span> ArrayList&lt;&gt;();</span><br><span class="line">        <span class="comment">// 处理已经应用的迁移，也分为2类: 可重复执行的和一次性执行的</span></span><br><span class="line">        <span class="keyword">for</span> (AppliedMigration appliedMigration : appliedMigrations) &#123;</span><br><span class="line">            MigrationVersion version = appliedMigration.getVersion();</span><br><span class="line">            <span class="keyword">if</span> (version == <span class="keyword">null</span>) &#123;</span><br><span class="line">                appliedRepeatable.add(appliedMigration);</span><br><span class="line">                <span class="keyword">continue</span>;</span><br><span class="line">            &#125;</span><br><span class="line">            <span class="keyword">if</span> (appliedMigration.getType() == MigrationType.SCHEMA) &#123;</span><br><span class="line">                context.schema = version;</span><br><span class="line">            &#125;</span><br><span class="line">            <span class="keyword">if</span> (appliedMigration.getType() == MigrationType.BASELINE) &#123;</span><br><span class="line">                context.baseline = version;</span><br><span class="line">            &#125;</span><br><span class="line">            appliedVersioned.add(Pair.of(appliedMigration, <span class="keyword">new</span> AppliedMigrationAttributes()));</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="comment">// 判断已经执行过的是否乱序</span></span><br><span class="line">        <span class="keyword">for</span> (Pair&lt;AppliedMigration, AppliedMigrationAttributes&gt; av : appliedVersioned) &#123;</span><br><span class="line">            MigrationVersion version = av.getLeft().getVersion();</span><br><span class="line">            <span class="keyword">if</span> (version != <span class="keyword">null</span>) &#123;</span><br><span class="line">                <span class="keyword">if</span> (version.compareTo(context.lastApplied) &gt; <span class="number">0</span>) &#123;</span><br><span class="line">                    context.lastApplied = version;</span><br><span class="line">				&#125; <span class="keyword">else</span> &#123;</span><br><span class="line">                    av.getRight().outOfOrder = <span class="keyword">true</span>;</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">if</span> (MigrationVersion.CURRENT == target) &#123;</span><br><span class="line">            context.target = context.lastApplied;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        List&lt;MigrationInfoImpl&gt; migrationInfos1 = <span class="keyword">new</span> ArrayList&lt;&gt;();</span><br><span class="line">        Set&lt;ResolvedMigration&gt; pendingResolvedVersioned = <span class="keyword">new</span> HashSet&lt;&gt;(resolvedVersioned.values());</span><br><span class="line">        <span class="comment">// 创建MigrationInfoImpl，迁移信息包括已解析的迁移和执行官的迁移</span></span><br><span class="line">        <span class="keyword">for</span> (Pair&lt;AppliedMigration, AppliedMigrationAttributes&gt; av : appliedVersioned) &#123;</span><br><span class="line">            ResolvedMigration resolvedMigration = resolvedVersioned.get(Pair.of(av.getLeft().getVersion(), av.getLeft().getType().isUndo()));</span><br><span class="line">            <span class="keyword">if</span> (resolvedMigration != <span class="keyword">null</span>) &#123;</span><br><span class="line">                pendingResolvedVersioned.remove(resolvedMigration);</span><br><span class="line">            &#125;</span><br><span class="line">            migrationInfos1.add(<span class="keyword">new</span> MigrationInfoImpl(resolvedMigration, av.getLeft(), context, av.getRight().outOfOrder));</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">for</span> (ResolvedMigration prv : pendingResolvedVersioned) &#123;</span><br><span class="line">            migrationInfos1.add(<span class="keyword">new</span> MigrationInfoImpl(prv, <span class="keyword">null</span>, context, <span class="keyword">false</span>));</span><br><span class="line">        &#125;</span><br><span class="line">		<span class="comment">// 处理已应用的可重复执行的</span></span><br><span class="line">        <span class="keyword">for</span> (AppliedMigration appliedRepeatableMigration : appliedRepeatable) &#123;</span><br><span class="line">            <span class="keyword">if</span> (!context.latestRepeatableRuns.containsKey(appliedRepeatableMigration.getDescription())</span><br><span class="line">                    || (appliedRepeatableMigration.getInstalledRank() &gt; context.latestRepeatableRuns.get(appliedRepeatableMigration.getDescription()))) &#123;</span><br><span class="line">                context.latestRepeatableRuns.put(appliedRepeatableMigration.getDescription(), appliedRepeatableMigration.getInstalledRank());</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        Set&lt;ResolvedMigration&gt; pendingResolvedRepeatable = <span class="keyword">new</span> HashSet&lt;&gt;(resolvedRepeatable.values());</span><br><span class="line">        <span class="keyword">for</span> (AppliedMigration appliedRepeatableMigration : appliedRepeatable) &#123;</span><br><span class="line">            ResolvedMigration resolvedMigration = resolvedRepeatable.get(appliedRepeatableMigration.getDescription());</span><br><span class="line">            <span class="keyword">int</span> latestRank = context.latestRepeatableRuns.get(appliedRepeatableMigration.getDescription());</span><br><span class="line">            <span class="keyword">if</span> (resolvedMigration != <span class="keyword">null</span> &amp;&amp; appliedRepeatableMigration.getInstalledRank() == latestRank</span><br><span class="line">                    &amp;&amp; Objects.equals(appliedRepeatableMigration.getChecksum(), resolvedMigration.getChecksum())) &#123;</span><br><span class="line">                pendingResolvedRepeatable.remove(resolvedMigration);</span><br><span class="line">            &#125;</span><br><span class="line">            migrationInfos1.add(<span class="keyword">new</span> MigrationInfoImpl(resolvedMigration, appliedRepeatableMigration, context, <span class="keyword">false</span>));</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">for</span> (ResolvedMigration prr : pendingResolvedRepeatable) &#123;</span><br><span class="line">            migrationInfos1.add(<span class="keyword">new</span> MigrationInfoImpl(prr, <span class="keyword">null</span>, context, <span class="keyword">false</span>));</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="comment">// 对migrationInfos1进行排序，已应用的在前，未应用的在后，版本号小的靠前，大的靠后</span></span><br><span class="line">        Collections.sort(migrationInfos1);</span><br><span class="line">        migrationInfos = migrationInfos1;</span><br><span class="line">    &#125;</span><br></pre></td></tr></table></figure>
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          
+          <div class="post-tags">
+              <a href="/tags/flyway/" rel="tag"><i class="fa fa-tag"></i> flyway</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2021/01/08/Flyway%E6%BA%90%E7%A0%81%E5%89%96%E6%9E%90-%E4%B8%80/" rel="prev" title="Flyway源码剖析(一)-流程">
+      <i class="fa fa-chevron-left"></i> Flyway源码剖析(一)-流程
+    </a></div>
+      <div class="post-nav-item"></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+  </div>
+
+
+          </div>
+          
+    <div class="comments" id="valine-comments"></div>
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let activeClass = CONFIG.comments.activeClass;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-5"><a class="nav-link" href="#DbMigrate-migrate"><span class="nav-number">1.</span> <span class="nav-text">DbMigrate#migrate</span></a><ol class="nav-child"><li class="nav-item nav-level-6"><a class="nav-link" href="#migrateGroup"><span class="nav-number">1.1.</span> <span class="nav-text">migrateGroup</span></a></li></ol></li><li class="nav-item nav-level-5"><a class="nav-link" href="#MigrationInfoServiceImpl-refresh"><span class="nav-number">2.</span> <span class="nav-text">MigrationInfoServiceImpl#refresh</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">wangyongxu</p>
+  <div class="site-description" itemprop="description">个人技术博客</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">13</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">9</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://github.com/wangyongxu" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;wangyongxu" rel="noopener" target="_blank"><i class="fa fa-fw fa-github"></i></a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="https://stackoverflow.com/users/7092009/wang-yongxu" title="StackOverflow → https:&#x2F;&#x2F;stackoverflow.com&#x2F;users&#x2F;7092009&#x2F;wang-yongxu" rel="noopener" target="_blank"><i class="fa fa-fw fa-stack-overflow"></i></a>
+      </span>
+  </div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2021</span>
+  <span class="with-love">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">wangyongxu</span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-area-chart"></i>
+    </span>
+      <span class="post-meta-item-text">站点总字数：</span>
+    <span title="站点总字数">67k</span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-coffee"></i>
+    </span>
+      <span class="post-meta-item-text">站点阅读时长 &asymp;</span>
+    <span title="站点阅读时长">1:01</span>
+</div>
+  <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> 强力驱动 v5.3.0
+  </div>
+  <span class="post-meta-divider">|</span>
+  <div class="theme-info">主题 – <a href="https://mist.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Mist</a> v7.7.0
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  
+  <script color='0,0,255' opacity='0.5' zIndex='-1' count='99' src="/lib/canvas-nest/canvas-nest.min.js"></script>
+  <script src="/lib/anime.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/medium-zoom@1/dist/medium-zoom.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/muse.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+<script>
+if (document.querySelectorAll('pre.mermaid').length) {
+  NexT.utils.getScript('//cdn.jsdelivr.net/npm/mermaid@8/dist/mermaid.min.js', () => {
+    mermaid.initialize({
+      theme: 'forest',
+      logLevel: 3,
+      flowchart: { curve: 'linear' },
+      gantt: { axisFormat: '%m/%d/%Y' },
+      sequence: { actorMargin: 50 }
+    });
+  }, window.mermaid);
+}
+</script>
+
+
+  
+
+  
+
+
+<script>
+NexT.utils.loadComments(document.querySelector('#valine-comments'), () => {
+  NexT.utils.getScript('//unpkg.com/valine/dist/Valine.min.js', () => {
+    var GUEST = ['nick', 'mail', 'link'];
+    var guest = 'nick,mail';
+    guest = guest.split(',').filter(item => {
+      return GUEST.includes(item);
+    });
+    new Valine({
+      el: '#valine-comments',
+      verify: false,
+      notify: true,
+      appId: 'QLqXKcorbsrAqEDljehpX124-gzGzoHsz',
+      appKey: 'ahIQFqxb5Jrn6mfvYjevUHlJ',
+      placeholder: "Just go go",
+      avatar: 'mm',
+      meta: guest,
+      pageSize: '10' || 10,
+      visitor: true,
+      lang: 'zh-cn' || 'zh-cn',
+      path: location.pathname,
+      recordIP: true,
+      serverURLs: ''
+    });
+  }, window.Valine);
+});
+</script>
+
+</body>
+</html>

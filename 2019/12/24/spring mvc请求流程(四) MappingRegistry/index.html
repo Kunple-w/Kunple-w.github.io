@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.3.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+<link rel="stylesheet" href="//fonts.googleapis.com/css?family=Lato:300,300italic,400,400italic,700,700italic&display=swap&subset=latin,latin-ext">
+<link rel="stylesheet" href="/lib/font-awesome/css/font-awesome.min.css">
+
+
+<script id="hexo-configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    hostname: new URL('http://wangyongxu.github.io').hostname,
+    root: '/',
+    scheme: 'Mist',
+    version: '7.7.0',
+    exturl: false,
+    sidebar: {"position":"right","display":"post","padding":18,"offset":12,"onmobile":false},
+    copycode: {"enable":false,"show_result":false,"style":null},
+    back2top: {"enable":true,"sidebar":false,"scrollpercent":false},
+    bookmark: {"enable":false,"color":"#222","save":"auto"},
+    fancybox: false,
+    mediumzoom: true,
+    lazyload: false,
+    pangu: false,
+    comments: {"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},
+    algolia: {
+      appID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    },
+    localsearch: {"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},
+    path: '',
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}
+  };
+</script>
+
+  <meta name="description" content="在HandlerMapping文章中，我们看了一个request找到对应的handlerMethod的流程: 在第一次匹配时是从mappingRegistry获取的RequestMappingInfo，然后组装出HandlerMethod，那RequestMappingInfo和mappingRegistry是如何产生的?">
+<meta property="og:type" content="article">
+<meta property="og:title" content="spring mvc请求流程(四) MappingRegistry">
+<meta property="og:url" content="http://wangyongxu.github.io/2019/12/24/spring%20mvc%E8%AF%B7%E6%B1%82%E6%B5%81%E7%A8%8B(%E5%9B%9B)%20MappingRegistry/index.html">
+<meta property="og:site_name" content="渔舟唱晚">
+<meta property="og:description" content="在HandlerMapping文章中，我们看了一个request找到对应的handlerMethod的流程: 在第一次匹配时是从mappingRegistry获取的RequestMappingInfo，然后组装出HandlerMethod，那RequestMappingInfo和mappingRegistry是如何产生的?">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="http://cdn.funnews.top/blog/1578473250300.png">
+<meta property="article:published_time" content="2019-12-24T00:29:36.000Z">
+<meta property="article:modified_time" content="2021-01-08T06:08:58.665Z">
+<meta property="article:author" content="wangyongxu">
+<meta property="article:tag" content="spring mvc">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://cdn.funnews.top/blog/1578473250300.png">
+
+<link rel="canonical" href="http://wangyongxu.github.io/2019/12/24/spring%20mvc%E8%AF%B7%E6%B1%82%E6%B5%81%E7%A8%8B(%E5%9B%9B)%20MappingRegistry/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome: false,
+    isPost: true
+  };
+</script>
+
+  <title>spring mvc请求流程(四) MappingRegistry | 渔舟唱晚</title>
+  
+
+
+  <script>
+    var _hmt = _hmt || [];
+    (function() {
+      var hm = document.createElement("script");
+      hm.src = "https://hm.baidu.com/hm.js?6c9cfe1142ecf385c6851f220c6b3a7f";
+      var s = document.getElementsByTagName("script")[0];
+      s.parentNode.insertBefore(hm, s);
+    })();
+  </script>
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-meta">
+
+    <div>
+      <a href="/" class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">渔舟唱晚</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+        <p class="site-subtitle">渔舟唱晚</p>
+  </div>
+
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+</div>
+
+
+<nav class="site-nav">
+  
+  <ul id="menu" class="menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-fw fa-home"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-fw fa-tags"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-fw fa-archive"></i>归档</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-fw fa-user"></i>关于</a>
+
+  </li>
+  </ul>
+
+</nav>
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content">
+            
+
+  <div class="posts-expand">
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block " lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="http://wangyongxu.github.io/2019/12/24/spring%20mvc%E8%AF%B7%E6%B1%82%E6%B5%81%E7%A8%8B(%E5%9B%9B)%20MappingRegistry/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="wangyongxu">
+      <meta itemprop="description" content="个人技术博客">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="渔舟唱晚">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          spring mvc请求流程(四) MappingRegistry
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2019-12-24 08:29:36" itemprop="dateCreated datePublished" datetime="2019-12-24T08:29:36+08:00">2019-12-24</time>
+            </span>
+
+          
+            <span id="/2019/12/24/spring%20mvc%E8%AF%B7%E6%B1%82%E6%B5%81%E7%A8%8B(%E5%9B%9B)%20MappingRegistry/" class="post-meta-item leancloud_visitors" data-flag-title="spring mvc请求流程(四) MappingRegistry" title="阅读次数">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-eye"></i>
+              </span>
+              <span class="post-meta-item-text">阅读次数：</span>
+              <span class="leancloud-visitors-count"></span>
+            </span>
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="fa fa-comment-o"></i>
+      </span>
+      <span class="post-meta-item-text">Valine：</span>
+    
+    <a title="valine" href="/2019/12/24/spring%20mvc%E8%AF%B7%E6%B1%82%E6%B5%81%E7%A8%8B(%E5%9B%9B)%20MappingRegistry/#comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/2019/12/24/spring%20mvc%E8%AF%B7%E6%B1%82%E6%B5%81%E7%A8%8B(%E5%9B%9B)%20MappingRegistry/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  
+            <span class="post-meta-item" title="本文字数">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-file-word-o"></i>
+              </span>
+                <span class="post-meta-item-text">本文字数：</span>
+              <span>6.5k</span>
+            </span>
+            <span class="post-meta-item" title="阅读时长">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-clock-o"></i>
+              </span>
+                <span class="post-meta-item-text">阅读时长 &asymp;</span>
+              <span>6 分钟</span>
+            </span>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p>在HandlerMapping文章中，我们看了一个request找到对应的handlerMethod的流程: 在第一次匹配时是从mappingRegistry获取的<code>RequestMappingInfo</code>，然后组装出<code>HandlerMethod</code>，那<code>RequestMappingInfo</code>和<code>mappingRegistry</code>是如何产生的?</p>
+<a id="more"></a>
+
+<h2 id="MappingRegistry"><a href="#MappingRegistry" class="headerlink" title="MappingRegistry"></a>MappingRegistry</h2><p>从名字可以看出来，这个类是映射注册表，包含了handler映射信息。我们还是先回顾下<code>RequestMappingHandlerMapping</code>的继承结构。</p>
+<p><img src="http://cdn.funnews.top/blog/1578473250300.png" alt="1578473250300"></p>
+<p>其中有个比较关键的接口<code>InitializingBean</code>。</p>
+<p>源码如下:</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">private</span> RequestMappingInfo.BuilderConfiguration config = <span class="keyword">new</span> RequestMappingInfo.BuilderConfiguration();</span><br><span class="line"></span><br><span class="line"><span class="meta">@Override</span></span><br><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">afterPropertiesSet</span><span class="params">()</span> </span>&#123;</span><br><span class="line">	<span class="keyword">this</span>.config = <span class="keyword">new</span> RequestMappingInfo.BuilderConfiguration();</span><br><span class="line">	<span class="keyword">this</span>.config.setUrlPathHelper(getUrlPathHelper());</span><br><span class="line">	<span class="keyword">this</span>.config.setPathMatcher(getPathMatcher());</span><br><span class="line">	<span class="keyword">this</span>.config.setSuffixPatternMatch(<span class="keyword">this</span>.useSuffixPatternMatch);</span><br><span class="line">	<span class="keyword">this</span>.config.setTrailingSlashMatch(<span class="keyword">this</span>.useTrailingSlashMatch);</span><br><span class="line">	<span class="keyword">this</span>.config.setRegisteredSuffixPatternMatch(<span class="keyword">this</span>.useRegisteredSuffixPatternMatch);</span><br><span class="line">	<span class="keyword">this</span>.config.setContentNegotiationManager(getContentNegotiationManager());</span><br><span class="line"></span><br><span class="line">	<span class="keyword">super</span>.afterPropertiesSet();</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>这个方法中，有关于RequestMappingInfo相关的信息，并且配置了<code>BuilderConfiguration</code>，最终调用了父类的<code>afterPropertiesSet</code>，而父类中调用了<code>initHandlerMethods</code>，相关的代码如下:</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">protected</span> <span class="keyword">void</span> <span class="title">initHandlerMethods</span><span class="params">()</span> </span>&#123;</span><br><span class="line">    <span class="keyword">for</span> (String beanName : getCandidateBeanNames()) &#123;</span><br><span class="line">        <span class="keyword">if</span> (!beanName.startsWith(SCOPED_TARGET_NAME_PREFIX)) &#123;</span><br><span class="line">            <span class="comment">// 处理候选bean</span></span><br><span class="line">            processCandidateBean(beanName);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="comment">// 仅打印了日志，子类可自定义业务</span></span><br><span class="line">    handlerMethodsInitialized(getHandlerMethods());</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h3 id="父子容器"><a href="#父子容器" class="headerlink" title="父子容器"></a>父子容器</h3><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">protected</span> String[] getCandidateBeanNames() &#123;</span><br><span class="line">    <span class="comment">// 获取容Object类的子类的name，也就是所有的bean name;</span></span><br><span class="line">    <span class="comment">// 注意这里暗示了spring mvc使用了父子容器。</span></span><br><span class="line">    <span class="keyword">return</span> (<span class="keyword">this</span>.detectHandlerMethodsInAncestorContexts ?</span><br><span class="line">            BeanFactoryUtils.beanNamesForTypeIncludingAncestors(obtainApplicationContext(), Object.class) :</span><br><span class="line">            obtainApplicationContext().getBeanNamesForType(Object<span class="class">.<span class="keyword">class</span>))</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>这里要说下<code>getCandidateBeanNames</code>方法，如果<code>detectHandlerMethodsInAncestorContexts==true</code>，就调用</p>
+<p><code>BeanFactoryUtils.beanNamesForTypeIncludingAncestors</code>方法获取bean名字，如果<code>false</code>，调用容器的<code>getBeanNamesForType</code>方法，这有什么区别呢？</p>
+<blockquote>
+<p>spring支持父子容器，父容器不知道子容器，子容器知道父容器。在spring mvc中，由<code>@Controller</code>标注的类都放在了子容器中，这么做是容器的职责分离。</p>
+</blockquote>
+<p><code>BeanFactoryUtils.beanNamesForTypeIncludingAncestors</code>支持从父容器中获得对应的bean，而容器的<code>getBeanNamesForType</code>仅能从自身中获取bean，所以通过<code>detectHandlerMethodsInAncestorContexts</code>可以控制是否从父容器中查找，默认为false。</p>
+<h3 id="processCandidateBean"><a href="#processCandidateBean" class="headerlink" title="processCandidateBean"></a>processCandidateBean</h3><p>上面从容器中获得了所有的bean，然后循环调用<code>processCandidateBean</code>处理候选bean，代码如下:</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">protected</span> <span class="keyword">void</span> <span class="title">processCandidateBean</span><span class="params">(String beanName)</span> </span>&#123;</span><br><span class="line">	Class&lt;?&gt; beanType = <span class="keyword">null</span>;</span><br><span class="line">	<span class="keyword">try</span> &#123;</span><br><span class="line">           <span class="comment">// 根据bean name获得bean的类型</span></span><br><span class="line">		beanType = obtainApplicationContext().getType(beanName);</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">catch</span> (Throwable ex) &#123;</span><br><span class="line">		<span class="comment">// An unresolvable bean type, probably from a lazy bean - let's ignore it.</span></span><br><span class="line">		<span class="keyword">if</span> (logger.isTraceEnabled()) &#123;</span><br><span class="line">			logger.trace(<span class="string">"Could not resolve type for bean '"</span> + beanName + <span class="string">"'"</span>, ex);</span><br><span class="line">		&#125;</span><br><span class="line">	&#125;</span><br><span class="line">       <span class="comment">// 如果beanType有Controller或者RequestMapping注解，表示该bean是handler</span></span><br><span class="line">	<span class="keyword">if</span> (beanType != <span class="keyword">null</span> &amp;&amp; isHandler(beanType)) &#123;</span><br><span class="line">           <span class="comment">// 处理并注册handler</span></span><br><span class="line">		detectHandlerMethods(beanName);</span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br><span class="line"><span class="meta">@Override</span></span><br><span class="line"><span class="function"><span class="keyword">protected</span> <span class="keyword">boolean</span> <span class="title">isHandler</span><span class="params">(Class&lt;?&gt; beanType)</span> </span>&#123;</span><br><span class="line">	<span class="keyword">return</span> (AnnotatedElementUtils.hasAnnotation(beanType, Controller<span class="class">.<span class="keyword">class</span>) ||</span></span><br><span class="line"><span class="class">			<span class="title">AnnotatedElementUtils</span>.<span class="title">hasAnnotation</span>(<span class="title">beanType</span>, <span class="title">RequestMapping</span>.<span class="title">class</span>))</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>如果beanType被Controller或者RequestMapping注解标记，那么就对该bean的方法过滤并转换为<code>RequestMappingInfo</code>对象，代码如下:</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">protected</span> <span class="keyword">void</span> <span class="title">detectHandlerMethods</span><span class="params">(Object handler)</span> </span>&#123;</span><br><span class="line">    	<span class="comment">// 获得处理器类型</span></span><br><span class="line">		Class&lt;?&gt; handlerType = (handler <span class="keyword">instanceof</span> String ?</span><br><span class="line">				obtainApplicationContext().getType((String) handler) : handler.getClass());</span><br><span class="line"></span><br><span class="line">		<span class="keyword">if</span> (handlerType != <span class="keyword">null</span>) &#123;</span><br><span class="line">            <span class="comment">// 获得用户定义的的类，也就是我们写的类，而不是AOP的类</span></span><br><span class="line">			Class&lt;?&gt; userType = ClassUtils.getUserClass(handlerType);</span><br><span class="line">            <span class="comment">// 过滤并解析方法，将解析结果放到map中</span></span><br><span class="line">			Map&lt;Method, T&gt; methods = MethodIntrospector.selectMethods(userType,</span><br><span class="line">					(MethodIntrospector.MetadataLookup&lt;T&gt;) method -&gt; &#123;</span><br><span class="line">						<span class="keyword">try</span> &#123;</span><br><span class="line">							<span class="keyword">return</span> getMappingForMethod(method, userType);</span><br><span class="line">						&#125;</span><br><span class="line">						<span class="keyword">catch</span> (Throwable ex) &#123;</span><br><span class="line">							<span class="keyword">throw</span> <span class="keyword">new</span> IllegalStateException(<span class="string">"Invalid mapping on handler class ["</span> +</span><br><span class="line">									userType.getName() + <span class="string">"]: "</span> + method, ex);</span><br><span class="line">						&#125;</span><br><span class="line">					&#125;);</span><br><span class="line">			<span class="keyword">if</span> (logger.isTraceEnabled()) &#123;</span><br><span class="line">				logger.trace(formatMappings(userType, methods));</span><br><span class="line">			&#125;</span><br><span class="line">			methods.forEach((method, mapping) -&gt; &#123;</span><br><span class="line">				Method invocableMethod = AopUtils.selectInvocableMethod(method, userType);</span><br><span class="line">                <span class="comment">// 将handler注册到注册器中</span></span><br><span class="line">				registerHandlerMethod(handler, invocableMethod, mapping);</span><br><span class="line">			&#125;);</span><br><span class="line">		&#125;</span><br><span class="line">	&#125;</span><br></pre></td></tr></table></figure>
+
+
+
+<p>从<code>getMappingForMethod</code>–&gt;<code>createRequestMappingInfo</code>–&gt;<code>createRequestMappingInfo</code>，最终可以看到<code>RequestMappingInfo</code>其实就是<code>@RequestMapping</code>的对象，再加上额外的配置，对应的代码如下:</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">protected</span> RequestMappingInfo <span class="title">createRequestMappingInfo</span><span class="params">(</span></span></span><br><span class="line"><span class="function"><span class="params">			RequestMapping requestMapping, @Nullable RequestCondition&lt;?&gt; customCondition)</span> </span>&#123;</span><br><span class="line">		RequestMappingInfo.Builder builder = RequestMappingInfo</span><br><span class="line">				.paths(resolveEmbeddedValuesInPatterns(requestMapping.path()))</span><br><span class="line">				.methods(requestMapping.method())</span><br><span class="line">				.params(requestMapping.params())</span><br><span class="line">				.headers(requestMapping.headers())</span><br><span class="line">				.consumes(requestMapping.consumes())</span><br><span class="line">				.produces(requestMapping.produces())</span><br><span class="line">				.mappingName(requestMapping.name());</span><br><span class="line">		<span class="keyword">if</span> (customCondition != <span class="keyword">null</span>) &#123;</span><br><span class="line">			builder.customCondition(customCondition);</span><br><span class="line">		&#125;</span><br><span class="line">		<span class="keyword">return</span> builder.options(<span class="keyword">this</span>.config).build();</span><br><span class="line">	&#125;</span><br></pre></td></tr></table></figure>
+
+<p>另外注解<code>@RequestMapping</code>在类上和方法上同时存在时，效果也会是2者的组合，所以在创建<code>RequestMappingInfo</code>对象过程中，还有组合的逻辑:</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">protected</span> RequestMappingInfo <span class="title">getMappingForMethod</span><span class="params">(Method method, Class&lt;?&gt; handlerType)</span> </span>&#123;</span><br><span class="line">	RequestMappingInfo info = createRequestMappingInfo(method);</span><br><span class="line">	<span class="keyword">if</span> (info != <span class="keyword">null</span>) &#123;</span><br><span class="line">		RequestMappingInfo typeInfo = createRequestMappingInfo(handlerType);</span><br><span class="line">		<span class="keyword">if</span> (typeInfo != <span class="keyword">null</span>) &#123;</span><br><span class="line">               <span class="comment">// 将类的RequestMappingInfo和方法的RequestMappingInfo组合，合成1个。</span></span><br><span class="line">               <span class="comment">// 组合时同属性的合并方式是：后置覆盖前者</span></span><br><span class="line">			info = typeInfo.combine(info);</span><br><span class="line">		&#125;</span><br><span class="line">		String prefix = getPathPrefix(handlerType);</span><br><span class="line">		<span class="keyword">if</span> (prefix != <span class="keyword">null</span>) &#123;</span><br><span class="line">			info = RequestMappingInfo.paths(prefix).build().combine(info);</span><br><span class="line">		&#125;</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">return</span> info;</span><br><span class="line">&#125;</span><br><span class="line"><span class="meta">@Override</span></span><br><span class="line"><span class="function"><span class="keyword">public</span> RequestMappingInfo <span class="title">combine</span><span class="params">(RequestMappingInfo other)</span> </span>&#123;</span><br><span class="line">       <span class="comment">// 组合RequestMappingInfo</span></span><br><span class="line">	String name = combineNames(other);</span><br><span class="line">	PatternsRequestCondition patterns = <span class="keyword">this</span>.patternsCondition.combine(other.patternsCondition);</span><br><span class="line">	RequestMethodsRequestCondition methods = <span class="keyword">this</span>.methodsCondition.combine(other.methodsCondition);</span><br><span class="line">	ParamsRequestCondition params = <span class="keyword">this</span>.paramsCondition.combine(other.paramsCondition);</span><br><span class="line">	HeadersRequestCondition headers = <span class="keyword">this</span>.headersCondition.combine(other.headersCondition);</span><br><span class="line">	ConsumesRequestCondition consumes = <span class="keyword">this</span>.consumesCondition.combine(other.consumesCondition);</span><br><span class="line">	ProducesRequestCondition produces = <span class="keyword">this</span>.producesCondition.combine(other.producesCondition);</span><br><span class="line">	RequestConditionHolder custom = <span class="keyword">this</span>.customConditionHolder.combine(other.customConditionHolder);</span><br><span class="line">	<span class="keyword">return</span> <span class="keyword">new</span> RequestMappingInfo(name, patterns,</span><br><span class="line">			methods, params, headers, consumes, produces, custom.getCondition());</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+
+
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>注解<code>@RequestMapping</code>和<code>@Controller</code>的解析时机是<code>RequestMappingHandlerMapping#afterPropertiesSet</code>。</p>
+<p>进行必要的属性设置后，从容器中拿到所有的bean name(会判断是否从父容器中读)，如果bean是处理器，就读取beanType方法并转换为<code>RequestMappingInfo</code>,  最终往<code>MappingRegistry</code>注册时转换为<code>HandlerMethod</code>,就完成了handler的注册。</p>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          
+          <div class="post-tags">
+              <a href="/tags/spring-mvc/" rel="tag"><i class="fa fa-tag"></i> spring mvc</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2019/12/23/spring%20mvc%E8%AF%B7%E6%B1%82%E6%B5%81%E7%A8%8B(%E4%B8%89)%20HandlerMapping%E6%90%9C%E7%B4%A2%E9%80%BB%E8%BE%91/" rel="prev" title="spring mvc请求流程(三) HandlerMapping搜索逻辑">
+      <i class="fa fa-chevron-left"></i> spring mvc请求流程(三) HandlerMapping搜索逻辑
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2020/01/02/spring%20mvc%E8%AF%B7%E6%B1%82%E6%B5%81%E7%A8%8B(%E4%BA%94)%20%E8%AF%B7%E6%B1%82%E5%88%B0%E6%96%B9%E6%B3%95%E7%9A%84%E8%BD%AC%E6%8D%A2/" rel="next" title="spring mvc请求流程(五) 请求到方法的转换">
+      spring mvc请求流程(五) 请求到方法的转换 <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+  </div>
+
+
+          </div>
+          
+    <div class="comments" id="valine-comments"></div>
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let activeClass = CONFIG.comments.activeClass;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#MappingRegistry"><span class="nav-number">1.</span> <span class="nav-text">MappingRegistry</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E7%88%B6%E5%AD%90%E5%AE%B9%E5%99%A8"><span class="nav-number">1.1.</span> <span class="nav-text">父子容器</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#processCandidateBean"><span class="nav-number">1.2.</span> <span class="nav-text">processCandidateBean</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%80%BB%E7%BB%93"><span class="nav-number">2.</span> <span class="nav-text">总结</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">wangyongxu</p>
+  <div class="site-description" itemprop="description">个人技术博客</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">13</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">9</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://github.com/wangyongxu" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;wangyongxu" rel="noopener" target="_blank"><i class="fa fa-fw fa-github"></i></a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="https://stackoverflow.com/users/7092009/wang-yongxu" title="StackOverflow → https:&#x2F;&#x2F;stackoverflow.com&#x2F;users&#x2F;7092009&#x2F;wang-yongxu" rel="noopener" target="_blank"><i class="fa fa-fw fa-stack-overflow"></i></a>
+      </span>
+  </div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2021</span>
+  <span class="with-love">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">wangyongxu</span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-area-chart"></i>
+    </span>
+      <span class="post-meta-item-text">站点总字数：</span>
+    <span title="站点总字数">67k</span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-coffee"></i>
+    </span>
+      <span class="post-meta-item-text">站点阅读时长 &asymp;</span>
+    <span title="站点阅读时长">1:01</span>
+</div>
+  <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> 强力驱动 v5.3.0
+  </div>
+  <span class="post-meta-divider">|</span>
+  <div class="theme-info">主题 – <a href="https://mist.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Mist</a> v7.7.0
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  
+  <script color='0,0,255' opacity='0.5' zIndex='-1' count='99' src="/lib/canvas-nest/canvas-nest.min.js"></script>
+  <script src="/lib/anime.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/medium-zoom@1/dist/medium-zoom.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/muse.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+<script>
+if (document.querySelectorAll('pre.mermaid').length) {
+  NexT.utils.getScript('//cdn.jsdelivr.net/npm/mermaid@8/dist/mermaid.min.js', () => {
+    mermaid.initialize({
+      theme: 'forest',
+      logLevel: 3,
+      flowchart: { curve: 'linear' },
+      gantt: { axisFormat: '%m/%d/%Y' },
+      sequence: { actorMargin: 50 }
+    });
+  }, window.mermaid);
+}
+</script>
+
+
+  
+
+  
+
+
+<script>
+NexT.utils.loadComments(document.querySelector('#valine-comments'), () => {
+  NexT.utils.getScript('//unpkg.com/valine/dist/Valine.min.js', () => {
+    var GUEST = ['nick', 'mail', 'link'];
+    var guest = 'nick,mail';
+    guest = guest.split(',').filter(item => {
+      return GUEST.includes(item);
+    });
+    new Valine({
+      el: '#valine-comments',
+      verify: false,
+      notify: true,
+      appId: 'QLqXKcorbsrAqEDljehpX124-gzGzoHsz',
+      appKey: 'ahIQFqxb5Jrn6mfvYjevUHlJ',
+      placeholder: "Just go go",
+      avatar: 'mm',
+      meta: guest,
+      pageSize: '10' || 10,
+      visitor: true,
+      lang: 'zh-cn' || 'zh-cn',
+      path: location.pathname,
+      recordIP: true,
+      serverURLs: ''
+    });
+  }, window.Valine);
+});
+</script>
+
+</body>
+</html>
